@@ -43,17 +43,16 @@ Puppet::Type.type(:firewallchain).provide :iptables_chain do
 
   def create
     allvalidchains do |t, chain, table, protocol|
-      if chain =~ InternalChains
-        # can't create internal chains
-        warning "Attempting to create internal chain #{@resource[:name]}"
-      end
-      if properties[:ensure] == protocol
-        debug "Skipping Inserting chain #{chain} on table #{table} (#{protocol}) already exists"
-      else
-        debug "Inserting chain #{chain} on table #{table} (#{protocol}) using #{t}"
-        t.call ['-t',table,'-N',chain]
-        unless @resource[:policy].nil?
-          t.call ['-t',table,'-P',chain,@resource[:policy].to_s.upcase]
+      # can't create internal chains
+      if chain !~ InternalChains
+        if properties[:ensure] == protocol
+          debug "Skipping Inserting chain #{chain} on table #{table} (#{protocol}) already exists"
+        else
+          debug "Inserting chain #{chain} on table #{table} (#{protocol}) using #{t}"
+          t.call ['-t',table,'-N',chain]
+          unless @resource[:policy].nil?
+            t.call ['-t',table,'-P',chain,@resource[:policy].to_s.upcase]
+          end
         end
       end
     end
@@ -61,12 +60,11 @@ Puppet::Type.type(:firewallchain).provide :iptables_chain do
 
   def destroy
     allvalidchains do |t, chain, table|
-      if chain =~ InternalChains
-        # can't delete internal chains
-        warning "Attempting to destroy internal chain #{@resource[:name]}"
+      # can't delete internal chains
+      if chain !~ InternalChains
+        debug "Deleting chain #{chain} on table #{table}"
+        t.call ['-t',table,'-X',chain]
       end
-      debug "Deleting chain #{chain} on table #{table}"
-      t.call ['-t',table,'-X',chain]
     end
   end
 
